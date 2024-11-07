@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/epoll.h>
 #include <pthread.h>
 #include <mongoc/mongoc.h>
 
@@ -69,6 +70,15 @@ typedef struct {
     int socket;
     int port;
 } HTTP_Server;
+
+
+#ifndef MAX_EVENTS
+#define MAX_EVENTS 100
+#endif // !MAX_EVENTS
+
+#ifndef THREAD_POOL_SIZE
+#define THREAD_POOL_SIZE 10
+#endif // !THREAD_POOL_SIZE
 
 typedef struct {
     mongoc_database_t *database;
