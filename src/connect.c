@@ -38,7 +38,7 @@ mongoc_database_t *init_db(const char *url, const char *dbName) {
     bson_destroy(command);
     return database;
 }
-void close_db() {
+void free_db() {
     mongoc_database_destroy(database);
     mongoc_server_api_destroy(api);
     mongoc_client_destroy(client);

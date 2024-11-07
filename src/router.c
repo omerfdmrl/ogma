@@ -4,58 +4,89 @@
 
 #include "ogma.h"
 
-Router *alloc_router() {
-    Router *router = OGMA_MALLOC(sizeof(Router));
-    return router;
-}
-Router* init_router(Router *router) {
-    router->end = false;
-    for (size_t i = 0; i < DEFAULT_ROUTER_SIZE; i++)
-        router->childs[i] = NULL;
-    return router;
-}
-void router_add(Router *router, const char *key, void (*callback)()) {
-    Router *current = router;
-    size_t length = strlen(key);
-    for (size_t level = 0; level < length; level++) {
-        size_t index = key[level] - 'a';
-        if (!current->childs[index]) {
-            current->childs[index] = malloc(sizeof(Router));
-            init_router(current->childs[index]);
-        }
-        current = current->childs[index];
+unsigned int hash_router(Router *router, char *path, char *method) {
+    unsigned int hash_value = 0;
+
+    for (size_t i = 0; i < strlen(path); i++) {
+        hash_value += path[i];
     }
-    current->end = true;
-    current->callback = callback;
+    for (size_t i = 0; i < strlen(method); i++) {
+        hash_value += method[i];
+    }
+    return hash_value % router->size;
 }
 
-Router *router_search(Router *router, const char *key) {
-    Router *current = router;
-    size_t length = strlen(key);
-    for (size_t level = 0; level < length; level++) {
-        size_t index = key[level] - 'a';
-        if(!current->childs[index])
-            return NULL;
-        current = current->childs[index];
+Router *init_router(unsigned int size) {
+    Router *router = (Router *)OGMA_MALLOC(sizeof(Router));
+    router->size = size;
+    router->nodes = OGMA_MALLOC(size * sizeof(RouterNode *));
+    for (size_t i = 0; i < size; i++) {
+        router->nodes[i] = NULL;
     }
-    if (current->callback != NULL && current->end)
-        return current;
-    else
-        return NULL;
+    return router;
 }
-void close_router(Router *router) {
-    if (router == NULL)
-        return;
 
-    for (size_t i = 0; i < DEFAULT_ROUTER_SIZE; i++) {
-        if (router->childs[i] != NULL) {
-            close_router(router->childs[i]);
-            OGMA_FREE(router->childs[i]);
-            OGMA_FREE(router->callback);
+RouterNode *init_router_node(char *path, char *method, void (*callback)(Request *request, Response *response)) {
+    RouterNode *node = (RouterNode *)OGMA_MALLOC(sizeof(RouterNode));
+    node->path = (char *)OGMA_MALLOC((strlen(path) + 1) * sizeof(char));
+    node->method = (char *)OGMA_MALLOC((strlen(method) + 1) * sizeof(char));
+    strcpy(node->path, path);
+    strcpy(node->method, method);
+    node->callback = callback;
+    return node;
+}
+
+void insert_router(Router *router, char *path, char *method, void (*callback)(Request *request, Response *response)) {
+    RouterNode *node = init_router_node(path, method, callback);
+    unsigned int index = hash_router(router, node->path, node->method);
+    if (router->nodes[index] == NULL) {
+        router->nodes[index] = node;
+    } else {
+        OGMA_FREE(router->nodes[index]->path);
+        OGMA_FREE(router->nodes[index]->method);
+        OGMA_FREE(router->nodes[index]);
+        router->nodes[index] = node;
+    }
+}
+
+RouterNode *search_router(Router *router, char *path, char *method) {
+    unsigned int index = hash_router(router, path, method);
+    if (router->nodes[index] != NULL && strcmp(router->nodes[index]->path, path) == 0 && strcmp(router->nodes[index]->method, method) == 0) {
+        return router->nodes[index];
+    }
+    return NULL;
+}
+
+void delete_router(Router *router, char *path, char *method) {
+    unsigned int index = hash_router(router, path, method);
+    if (router->nodes[index] != NULL && strcmp(router->nodes[index]->path, path) == 0 && strcmp(router->nodes[index]->method, method) == 0) {
+        OGMA_FREE(router->nodes[index]->path);
+        OGMA_FREE(router->nodes[index]->method);
+        OGMA_FREE(router->nodes[index]);
+        router->nodes[index] = NULL;
+    }
+}
+
+void free_router(Router *router) {
+    for (size_t i = 0; i < router->size; i++) {
+        if (router->nodes[i] != NULL) {
+            OGMA_FREE(router->nodes[i]->path);
+            OGMA_FREE(router->nodes[i]->method);
+            OGMA_FREE(router->nodes[i]);
         }
     }
+    OGMA_FREE(router->nodes);
     OGMA_FREE(router);
-    logger("Router successfully closed.");
+}
+
+void print_router(Router *router) {
+    for (size_t i = 0; i < router->size; i++) {
+        if (router->nodes[i] == NULL) {
+            printf("\t%li\t----\n", i);
+        } else {
+            printf("\t%li\tMethod: %s, Path: %s\n", i, router->nodes[i]->method, router->nodes[i]->path);
+        }
+    }
 }
 
 #endif // OGMA_ROUTER_H

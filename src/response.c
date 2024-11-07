@@ -4,7 +4,20 @@
 
 #include "ogma.h"
 
-void *response_sendFile(Response response, char * fileName) {
+Response *init_response() {
+	Response *response = OGMA_MALLOC(sizeof(Response));
+	return response;
+}
+
+void free_response(Response *response) {
+	int closed = close(response->socket);
+    if (closed < 0) {
+        perror("close");
+    }
+	OGMA_FREE(response);
+}
+
+void *response_sendFile(Response *response, char * fileName) {
 	FILE* file = fopen(fileName, "r");
 
 	if (file == NULL) {
@@ -15,7 +28,7 @@ void *response_sendFile(Response response, char * fileName) {
 	long fsize = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
-	char* response_data = malloc(sizeof(char) * (fsize+1));
+	char* response_data = OGMA_MALLOC(sizeof(char) * (fsize+1));
 	char ch;
 	int i = 0;
 	while((ch = fgetc(file)) != EOF) {
@@ -27,7 +40,7 @@ void *response_sendFile(Response response, char * fileName) {
 
 	strcat(http_header, response_data);
 	strcat(http_header, "\r\n\r\n");
-	send(response.socket, http_header, sizeof(http_header), 0);
+	send(response->socket, http_header, sizeof(http_header), 0);
 
 	return NULL;
 }

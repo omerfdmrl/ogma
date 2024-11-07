@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/select.h>
+#include <fcntl.h>
 #include <mongoc/mongoc.h>
 
 #ifndef OGMA_MALLOC
@@ -29,31 +31,39 @@ typedef enum {
     Error
 } assert_level;
 
+typedef struct HashNode {
+    char *key;
+    char *value;
+    struct HashNode *next;
+} HashNode;
 
-
-typedef struct {
-    char *userAgent;
-} Header;
+typedef struct HashTable {
+    unsigned int size;
+    HashNode **table;
+} HashTable;
 
 typedef struct {
     char *url;
     char *method;
-    Header header;
+    HashTable *query;
+    HashTable *body;
+    HashTable *header;
 } Request;
 
 typedef struct {
     int socket;
 } Response;
 
-#define DEFAULT_ROUTER_SIZE 43 // 'a' - 'z'
+typedef struct RouterNode {
+    char *path;
+    char *method;
+    void (*callback)(Request *request, Response *response);
+} RouterNode;
 
-typedef struct Router Router;
-
-struct Router {
-    Router* childs[DEFAULT_ROUTER_SIZE];
-    void (*callback)(Request request, Response response);
-    bool end;
-};
+typedef struct {
+    unsigned int size;
+    RouterNode **nodes;
+} Router;
 
 typedef struct {
     int socket;
@@ -67,23 +77,33 @@ typedef struct {
 void logger(const char *message, ...);
 void assert(int condition, assert_level level, const char *message, ...);
 
-Request init_request(char message[4096]);
-void print_request(Request request);
+HashTable *init_hash_table(unsigned int size);
+void insert_hash_table(HashTable *hash_table, const char *key, const char *value);
+char *search_hash_table(HashTable *hash_table, const char *key);
+void free_hash_table(HashTable *hash_table);
+void print_hash_table(HashTable *hash_table);
 
-void *response_sendFile(Response response, char * fileName);
+Request *init_request(char *message);
+void free_request(Request *request);
+void print_request(Request *request);
 
-Router *alloc_router();
-Router* init_router(Router *router);
-void router_add(Router *router, const char *key, void (*callback)());
-Router *router_search(Router *router, const char *key);
-void close_router(Router *router);
+Response *init_response();
+void free_response(Response *response);
+void *response_sendFile(Response *response, char * fileName);
 
-HTTP_Server *alloc_server();
-void init_server(HTTP_Server *http_server, int port);
+Router *init_router(unsigned int size);
+void insert_router(Router *router, char *path, char *method, void (*callback)(Request *request, Response *response));
+RouterNode *search_router(Router *router, char *path, char *method);
+void delete_router(Router *router, char *path, char *method);
+void free_router(Router *router);
+void print_router(Router *router);
+
+HTTP_Server *init_server(int port);
 void *run_server(HTTP_Server *http_server, Router *router);
-void close_server(HTTP_Server *http_server);
+void loop_server(HTTP_Server *server, Router *router);
+void free_server(HTTP_Server *http_server);
 
 mongoc_database_t *init_db(const char *url, const char *dbName);
-void close_db();
+void free_db();
 
 #endif // !OGMA_H

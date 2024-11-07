@@ -4,11 +4,8 @@
 
 #include "ogma.h"
 
-HTTP_Server *alloc_server() {
+HTTP_Server *init_server(int port) {
     HTTP_Server *http_server = (HTTP_Server*)OGMA_MALLOC(sizeof(HTTP_Server));
-    return http_server;
-}
-void init_server(HTTP_Server *http_server, int port) {
     http_server->port = port;
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
     assert(server_socket < 0, Error, "Socket could not created");
@@ -26,32 +23,81 @@ void init_server(HTTP_Server *http_server, int port) {
     assert(listen(server_socket, 10) < 0, Error, "Socket could not listening");
     http_server->socket = server_socket;
     logger("HTTP Server initialized, PORT: %d", port);
+    return http_server;
 }
 void *run_server(HTTP_Server *http_server, Router *router) {
     char client_msg[4096] = "";
     int client_socket = accept(http_server->socket, NULL, NULL);
-    if(client_socket == -1) return NULL;
+    
+    if (client_socket == -1) {
+        perror("accept failed");
+        return NULL;
+    }
 
-    read(client_socket, client_msg, 4095);
-
-    Request request = init_request(client_msg);
-    print_request(request);
-
-    Router *route = router_search(router, request.url);
-    if(!route) {
-        logger("Not in routes: %s", request.url);
+    ssize_t bytes_read = read(client_socket, client_msg, sizeof(client_msg) - 1);
+    if (bytes_read == -1) {
+        perror("read failed");
         close(client_socket);
         return NULL;
     }
-    Response response;
-    response.socket = client_socket;
+
+    if (bytes_read == 0) {
+        printf("Client closed the connection.\n");
+        close(client_socket);
+        return NULL;
+    }
+
+    client_msg[bytes_read] = '\0';
+
+    Request *request = init_request(client_msg);
+    print_request(request);
+
+    Response *response = init_response();
+    response->socket = client_socket;
+
+    RouterNode *route = search_router(router, request->url, request->method);
+    if (!route) {
+        logger("Not in routes: %s", request->url);
+        close(client_socket);
+        return NULL;
+    }
 
     route->callback(request, response);
-    close(client_socket);
 
+    free_response(response);
+    free_request(request);
     return NULL;
 }
-void close_server(HTTP_Server *http_server) {
+
+void loop_server(HTTP_Server *server, Router *router) {
+    fd_set readfds;
+    int max_fd = server->socket;
+    
+    while (1) {
+        FD_ZERO(&readfds);
+        FD_SET(0, &readfds);
+        FD_SET(server->socket, &readfds);
+
+        int activity = select(max_fd + 1, &readfds, NULL, NULL, NULL);
+        if (activity < 0) {
+            perror("select error");
+            break;
+        }
+
+        if (FD_ISSET(0, &readfds)) {
+            char input = getchar();
+            if (input == 'q') {
+                break;
+            }
+        }
+
+        if (FD_ISSET(server->socket, &readfds)) {
+            run_server(server, router);
+        }
+    }
+}
+
+void free_server(HTTP_Server *http_server) {
     if (http_server == NULL)
         return;
 

@@ -4,31 +4,62 @@
 
 #include "ogma.h"
 
-Request init_request(char message[4096]) {
-    Request request;
+Request *init_request(char *message) {
+    Request *request = OGMA_MALLOC(sizeof(Request));
+    request->query = init_hash_table(10);
+    request->body = init_hash_table(10);
+    request->header = init_hash_table(10);
 
-    char *client_http_header = strtok(message, "\n");
-    char *header_token = strtok(client_http_header, " ");
-    
-    int header_parse_counter = 0;
+    char *line = message;
+    char *next_line;
+    int line_counter = 0;
 
-    while (header_token != NULL) {
+    while ((next_line = strchr(line, '\n')) != NULL) {
+        *next_line = '\0';
 
-        switch (header_parse_counter) {
-            case 0:
-                request.method = header_token;
-                break;
-            case 1:
-                request.url = header_token;
-                break;
+        if (line_counter == 0) {
+            char *method = strtok(line, " ");
+            char *url_with_query = strtok(NULL, " ");
+            
+            request->method = method;
+            char *url = strtok(url_with_query, "?");
+            request->url = url;
+
+            char *query_token = strtok(NULL, "&");
+            while (query_token != NULL) {
+                char *key = strtok(query_token, "=");
+                char *value = strtok(NULL, "");
+
+                if (key && value) {
+                    insert_hash_table(request->query, key, value);
+                }
+
+                query_token = strtok(NULL, "&");
+            }
+        } else {
+            char *header_key = strtok(line, ": ");
+            char *header_value = strtok(NULL, "");
+
+            if (header_key && header_value) {
+                insert_hash_table(request->header, header_key, header_value);
+            }
         }
-        header_token = strtok(NULL, " ");
-        header_parse_counter++;
+
+        line = next_line + 1;
+        line_counter++;
     }
+
     return request;
 }
-void print_request(Request request) {
-    logger("Method: %s, Route: %s", request.method, request.url);
+
+void free_request(Request *request) {
+    free_hash_table(request->body);
+    free_hash_table(request->query);
+    free_hash_table(request->header);
+    OGMA_FREE(request);
+}
+void print_request(Request *request) {
+    logger("Method: %s, Route: %s", request->method, request->url);
 }
 
 #endif // !OGME_REQUEST_H
