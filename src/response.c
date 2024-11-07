@@ -17,32 +17,36 @@ void free_response(Response *response) {
 	OGMA_FREE(response);
 }
 
-void *response_sendFile(Response *response, char * fileName) {
-	FILE* file = fopen(fileName, "r");
+void *response_sendFile(Response *response, char *fileName) {
+    FILE *file = fopen(fileName, "rb");
 
-	if (file == NULL) {
-		return NULL;
-	}
+    if (file == NULL) {
+        return NULL;
+    }
 
-	fseek(file, 0, SEEK_END);
-	long fsize = ftell(file);
-	fseek(file, 0, SEEK_SET);
+    fseek(file, 0, SEEK_END);
+    long fsize = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
-	char* response_data = OGMA_MALLOC(sizeof(char) * (fsize+1));
-	char ch;
-	int i = 0;
-	while((ch = fgetc(file)) != EOF) {
-		response_data[i] = ch;
-		i++;
-	}
-	fclose(file);
-	char http_header[4096] = "HTTP/1.1 200 OK\r\n\r\n";
+    char *response_data = OGMA_MALLOC(fsize);
 
-	strcat(http_header, response_data);
-	strcat(http_header, "\r\n\r\n");
-	send(response->socket, http_header, sizeof(http_header), 0);
+    fread(response_data, 1, fsize, file);
+    fclose(file);
 
-	return NULL;
+    char http_header[1024];
+    snprintf(http_header, sizeof(http_header), "HTTP/1.1 200 OK\r\nContent-Length: %ld\r\n\r\n", fsize);
+
+    char *final_response = OGMA_MALLOC(strlen(http_header) + fsize);
+    strcpy(final_response, http_header);
+    memcpy(final_response + strlen(http_header), response_data, fsize);
+
+    send(response->socket, final_response, strlen(http_header) + fsize, 0);
+
+    OGMA_FREE(response_data);
+    OGMA_FREE(final_response);
+
+    return NULL;
 }
+
 
 #endif // !OGME_RESPONSE_H
