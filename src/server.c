@@ -25,7 +25,16 @@ HTTP_Server *init_server(int port) {
     logger("HTTP Server initialized, PORT: %d", port);
     return http_server;
 }
-void *run_server(HTTP_Server *http_server, Router *router) {
+
+struct arg_struct {
+    HTTP_Server *server;
+    Router *router;
+};
+
+void *run_server(void *arguments) {
+    struct arg_struct *args = arguments;
+    HTTP_Server *http_server = args->server;
+    Router *router = args->router;
     char client_msg[4096] = "";
     int client_socket = accept(http_server->socket, NULL, NULL);
     
@@ -92,7 +101,12 @@ void loop_server(HTTP_Server *server, Router *router) {
         }
 
         if (FD_ISSET(server->socket, &readfds)) {
-            run_server(server, router);
+            pthread_t thread_id;
+            struct arg_struct args;
+            args.router = router;
+            args.server = server;
+            pthread_create(&thread_id, NULL, run_server, (void *)&args);
+            pthread_join(thread_id, NULL);
         }
     }
 }

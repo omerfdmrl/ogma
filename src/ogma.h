@@ -11,7 +11,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include <fcntl.h>
+#include <pthread.h>
 #include <mongoc/mongoc.h>
 
 #ifndef OGMA_MALLOC
@@ -99,7 +99,6 @@ void free_router(Router *router);
 void print_router(Router *router);
 
 HTTP_Server *init_server(int port);
-void *run_server(HTTP_Server *http_server, Router *router);
 void loop_server(HTTP_Server *server, Router *router);
 void free_server(HTTP_Server *http_server);
 
