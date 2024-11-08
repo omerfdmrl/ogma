@@ -5,6 +5,15 @@ void callbackWelcome(Request *request, Response *response) {
     response_sendFile(response, "test.html");
 }
 
+void callbackWelcomePOST(Request *request, Response *response) {
+    (void) request;
+    HashTable *responseJSON = init_hash_table(10);
+    insert_hash_table(responseJSON, "foo", "bar");
+    insert_hash_table(responseJSON, "hey", "yo!");
+    response_sendJson(response, json_hash_table(responseJSON));
+    free_hash_table(responseJSON);
+}
+
 void middlewareDate(Request *request, Response *response, int *next) {
     (void) request;
     (void) response;
@@ -16,12 +25,16 @@ void middlewareDate(Request *request, Response *response, int *next) {
 
 int main() {
     HTTP_Server *server = init_server(3837);
-
     Router *router = init_router(10);
+
     RouterNode *welcomeNode = init_router_node("/welcome", "GET", callbackWelcome);
     insert_middleware(welcomeNode, middlewareDate);
-
     insert_router(router, welcomeNode);
+
+
+    RouterNode *welcomeNodePOST = init_router_node("/welcome", "POST", callbackWelcomePOST);
+    insert_middleware(welcomeNodePOST, middlewareDate);
+    insert_router(router, welcomeNodePOST);
 
     loop_server(server, router);
 

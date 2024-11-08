@@ -59,6 +59,50 @@ void print_hash_table(HashTable *hash_table) {
     printf(" }");
 }
 
+char *json_hash_table(HashTable *hash_table) {
+    size_t buffer_size = 256;
+    char *json_str = (char *)malloc(buffer_size);
+    if (json_str == NULL) {
+        return NULL;
+    }
+
+    strcpy(json_str, "{");
+    int first = 1;
+
+    for (size_t i = 0; i < hash_table->size; i++) {
+        HashNode *node = hash_table->table[i];
+        while (node != NULL) {
+            size_t additional_size = strlen(node->key) + strlen(node->value) + 10;
+            size_t current_length = strlen(json_str);
+
+            if (current_length + additional_size >= buffer_size) {
+                buffer_size = current_length + additional_size + 128;
+                json_str = (char *)realloc(json_str, buffer_size);
+                if (json_str == NULL) {
+                    return NULL;
+                }
+            }
+
+            if (!first) {
+                strcat(json_str, ", ");
+            }
+            first = 0;
+
+            strcat(json_str, "\"");
+            strcat(json_str, node->key);
+            strcat(json_str, "\": \"");
+            strcat(json_str, node->value);
+            strcat(json_str, "\"");
+
+            node = node->next;
+        }
+    }
+
+    strcat(json_str, "}");
+
+    return json_str;
+}
+
 void free_hash_table(HashTable *hash_table) {
     for (size_t i = 0; i < hash_table->size; i++) {
         HashNode *node = hash_table->table[i];

@@ -94,6 +94,7 @@ void insert_hash_table(HashTable *hash_table, const char *key, const char *value
 char *search_hash_table(HashTable *hash_table, const char *key);
 void free_hash_table(HashTable *hash_table);
 void print_hash_table(HashTable *hash_table);
+char *json_hash_table(HashTable *hash_table);
 
 Request *init_request(char *message);
 void free_request(Request *request);
@@ -102,6 +103,8 @@ void print_request(Request *request);
 Response *init_response();
 void free_response(Response *response);
 void *response_sendFile(Response *response, char * fileName);
+void response_sendJson(Response *response, char *jsonData);
+void response_sendText(Response *response, char *text);
 
 Router *init_router(unsigned int size);
 RouterNode *init_router_node(char *path, char *method, void (*callback)(Request *request, Response *response));

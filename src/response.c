@@ -48,5 +48,34 @@ void *response_sendFile(Response *response, char *fileName) {
     return NULL;
 }
 
+void response_sendJson(Response *response, char *jsonData) {
+    size_t jsonSize = strlen(jsonData);
+
+    char http_header[1024];
+    snprintf(http_header, sizeof(http_header), "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: %zu\r\n\r\n", jsonSize);
+
+    char *final_response = OGMA_MALLOC(strlen(http_header) + jsonSize);
+    strcpy(final_response, http_header);
+    strcpy(final_response + strlen(http_header), jsonData);
+
+    send(response->socket, final_response, strlen(http_header) + jsonSize, 0);
+
+    OGMA_FREE(final_response);
+}
+
+void response_sendText(Response *response, char *text) {
+    size_t textSize = strlen(text);
+
+    char http_header[1024];
+    snprintf(http_header, sizeof(http_header), "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %zu\r\n\r\n", textSize);
+
+    char *final_response = OGMA_MALLOC(strlen(http_header) + textSize);
+    strcpy(final_response, http_header);
+    strcpy(final_response + strlen(http_header), text);
+
+    send(response->socket, final_response, strlen(http_header) + textSize, 0);
+
+    OGMA_FREE(final_response);
+}
 
 #endif // !OGME_RESPONSE_H
