@@ -59,6 +59,8 @@ typedef struct RouterNode {
     char *path;
     char *method;
     void (*callback)(Request *request, Response *response);
+    void (**middlewares)(Request *request, Response *response, int *next);
+    unsigned int middleware_count;
 } RouterNode;
 
 typedef struct {
@@ -73,11 +75,11 @@ typedef struct {
 
 
 #ifndef MAX_EVENTS
-#define MAX_EVENTS 100
+#define MAX_EVENTS 1
 #endif // !MAX_EVENTS
 
 #ifndef THREAD_POOL_SIZE
-#define THREAD_POOL_SIZE 10
+#define THREAD_POOL_SIZE 1
 #endif // !THREAD_POOL_SIZE
 
 typedef struct {
@@ -102,7 +104,9 @@ void free_response(Response *response);
 void *response_sendFile(Response *response, char * fileName);
 
 Router *init_router(unsigned int size);
-void insert_router(Router *router, char *path, char *method, void (*callback)(Request *request, Response *response));
+RouterNode *init_router_node(char *path, char *method, void (*callback)(Request *request, Response *response));
+void insert_router(Router *router, RouterNode *node);
+void insert_middleware(RouterNode *node, void (*middleware)(Request *request, Response *response, int *next));
 RouterNode *search_router(Router *router, char *path, char *method);
 void delete_router(Router *router, char *path, char *method);
 void free_router(Router *router);

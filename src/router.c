@@ -33,11 +33,12 @@ RouterNode *init_router_node(char *path, char *method, void (*callback)(Request 
     strcpy(node->path, path);
     strcpy(node->method, method);
     node->callback = callback;
+    node->middlewares = NULL;
+    node->middleware_count = 0;
     return node;
 }
 
-void insert_router(Router *router, char *path, char *method, void (*callback)(Request *request, Response *response)) {
-    RouterNode *node = init_router_node(path, method, callback);
+void insert_router(Router *router, RouterNode *node) {
     unsigned int index = hash_router(router, node->path, node->method);
     if (router->nodes[index] == NULL) {
         router->nodes[index] = node;
@@ -47,6 +48,12 @@ void insert_router(Router *router, char *path, char *method, void (*callback)(Re
         OGMA_FREE(router->nodes[index]);
         router->nodes[index] = node;
     }
+}
+
+void insert_middleware(RouterNode *node, void (*middleware)(Request *request, Response *response, int *next)) {
+    node->middlewares = OGMA_REALLOC(node->middlewares, (node->middleware_count + 1) * sizeof(void (*)(Request *, Response *, int *)));
+    node->middlewares[node->middleware_count] = middleware;
+    node->middleware_count++;
 }
 
 RouterNode *search_router(Router *router, char *path, char *method) {

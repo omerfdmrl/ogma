@@ -1,7 +1,7 @@
 CC = cc
 COMPILER = gcc
 FLAGS = -Wall -Wextra -Werror
-LIBRARIES = -lm $(shell pkg-config --cflags --libs libmongoc-1.0)
+LIBRARIES = -lm -lcjson $(shell pkg-config --cflags --libs libmongoc-1.0)
 RM = rm -f
 
 SOURCE = main.c

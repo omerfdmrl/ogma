@@ -68,6 +68,16 @@ void *handle_client() {
             close(task.client_socket);
             continue;
         }
+        int next = 1;
+        for (size_t i = 0; i < route->middleware_count; i++) {
+            route->middlewares[i](request, response, &next);
+            if (next < 1) {
+                return NULL;
+                free_response(response);
+                free_request(request);
+                close(task.client_socket);
+            }
+        }
         
         route->callback(request, response);
         
